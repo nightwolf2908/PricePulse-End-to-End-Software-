@@ -1,0 +1,40 @@
+# --- ENTORNOS VIRTUALES ---
+# Ignora la carpeta de librerías locales de Python para que no subas gigabytes de código ajeno
+venv/
+.venv/
+env/
+ENV/
+
+# --- ARCHIVOS DE CONFIGURACIÓN Y SECRETOS ---
+# Aquí guardarás tus contraseñas y variables de entorno más adelante
+.env
+.env.local
+.env.*.local
+
+# --- CACHÉ DE PYTHON ---
+# Archivos temporales que genera Python al compilar tus scripts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# --- ARCHIVOS DE CONFIGURACIÓN DEL EDITOR ---
+# Configuraciones de tu editor de código que no deben compartirse con otros desarrolladores
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# --- ARCHIVOS DE CONFIGURACIÓN DEL SISTEMA ---
+# Archivos basura automáticos de Mac y Linux
+.DS_Store
+Thumbs.db
+
+# --- DOCKER DATA ---
+# Si en algún momento guardas datos de Docker en carpetas locales sueltas
+.docker/

@@ -1,0 +1,16 @@
+services:
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: pricepulse_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: pulse_admin
+      POSTGRES_PASSWORD: mi_contrasena_segura2908
+      POSTGRES_DB: pricepulse_mvp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
