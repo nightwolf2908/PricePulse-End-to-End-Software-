@@ -27,3 +27,15 @@ celery_app.conf.update(
     timezone="America/Monterrey",
     enable_utc=True,
 )
+
+# Programación periódica del producto de prueba.
+celery_app.conf.beat_schedule = {
+    "revisar-libro-periodicamente": {
+        "task": "tasks.revisar_precio",
+        "schedule": 4 * 60 * 60,
+        "args": (
+            "https://books.toscrape.com/"
+            "catalogue/a-light-in-the-attic_1000/index.html",
+        ),
+    },
+}
