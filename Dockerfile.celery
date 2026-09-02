@@ -14,5 +14,6 @@ RUN python -m playwright install --with-deps chromium
 COPY celery_app.py .
 COPY tasks.py .
 COPY scraper.py .
+COPY notificaciones.py .
 
 CMD ["celery", "-A", "celery_app", "worker", "--loglevel=info"]
