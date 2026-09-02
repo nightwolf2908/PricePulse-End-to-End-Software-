@@ -3,6 +3,9 @@ from decimal import Decimal
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
+class ErrorTemporalScraping(Exception):
+    """La tienda presentó un fallo que podría resolverse al reintentar."""
+
 
 def extraer_precio(url, *, headless=True):
     """Extrae los datos de una ficha de producto de Books to Scrape."""
@@ -19,10 +22,17 @@ def extraer_precio(url, *, headless=True):
                 timeout=30000,
             )
 
-            if respuesta is None or not respuesta.ok:
-                estado = respuesta.status if respuesta else "sin respuesta"
+            if respuesta is None:
+                raise RuntimeError("La navegación no devolvió una respuesta HTTP.")
+
+            if respuesta.status in (408, 500, 502, 503, 504):
+                raise ErrorTemporalScraping(
+                    f"Fallo temporal de la tienda: HTTP {respuesta.status}"
+                )
+
+            if not respuesta.ok:
                 raise RuntimeError(
-                    f"No se pudo cargar el producto: {estado}"
+                    f"No se pudo cargar el producto: HTTP {respuesta.status}"
                 )
 
             pagina.locator(
