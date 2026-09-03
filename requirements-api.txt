@@ -1,0 +1,3 @@
+PyJWT>=2.10,<3
+python-dotenv>=1,<2
+bcrypt>=5,<6

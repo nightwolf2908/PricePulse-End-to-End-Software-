@@ -20,7 +20,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from scraper import ErrorTemporalScraping, extraer_precio
 
-from seguridad import generar_password_hash
+from seguridad import (
+    crear_token_acceso,
+    generar_password_hash,
+    verificar_password,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -204,3 +208,44 @@ def listar_usuarios(db: Session = Depends(get_db)):
         }
         for usuario in usuarios
     ]
+
+class LoginEntrada(BaseModel):
+    email: str
+    password: str
+
+
+class TokenRespuesta(BaseModel):
+    access_token: str
+    token_type: str
+
+@app.post("/login", response_model=TokenRespuesta)
+def iniciar_sesion(
+    credenciales: LoginEntrada,
+    db: Session = Depends(get_db),
+):
+    email_normalizado = credenciales.email.strip().lower()
+
+    usuario = (
+        db.query(models.Usuario)
+        .filter(models.Usuario.email == email_normalizado)
+        .first()
+    )
+
+    # Utilizamos el mismo mensaje si falla el correo o la contraseña.
+    # Así no revelamos qué correos están registrados.
+    if usuario is None or not verificar_password(
+        credenciales.password,
+        usuario.password_hash,
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Correo o contraseña incorrectos.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = crear_token_acceso(usuario.id)
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+    }
