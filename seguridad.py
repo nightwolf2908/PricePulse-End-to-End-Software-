@@ -66,3 +66,36 @@ def verificar_password(password: str, password_hash: str) -> bool:
         )
     except ValueError:
         return False
+
+def decodificar_token_acceso(token: str) -> int:
+    secreto = os.getenv("JWT_SECRET")
+
+    if not secreto:
+        raise RuntimeError("Falta configurar JWT_SECRET.")
+
+    contenido = jwt.decode(
+        token,
+        secreto,
+        algorithms=[JWT_ALGORITHM],
+    )
+
+    usuario_id = contenido.get("sub")
+
+    if usuario_id is None:
+        raise jwt.InvalidTokenError(
+            "El token no contiene un usuario."
+        )
+
+    try:
+        usuario_id = int(usuario_id)
+    except (TypeError, ValueError) as error:
+        raise jwt.InvalidTokenError(
+            "El identificador del token no es válido."
+        ) from error
+
+    if usuario_id <= 0:
+        raise jwt.InvalidTokenError(
+            "El identificador del token no es válido."
+        )
+
+    return usuario_id

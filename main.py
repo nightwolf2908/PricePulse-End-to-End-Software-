@@ -1,3 +1,10 @@
+import jwt
+
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+)
+
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, HttpUrl
@@ -24,11 +31,50 @@ from seguridad import (
     crear_token_acceso,
     generar_password_hash,
     verificar_password,
+    decodificar_token_acceso,
 )
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PricePulse API", version="0.1.0")
+
+seguridad_bearer = HTTPBearer(auto_error=False)
+
+
+def obtener_usuario_actual(
+    credenciales: HTTPAuthorizationCredentials = Depends(
+        seguridad_bearer
+    ),
+    db: Session = Depends(get_db),
+):
+    if credenciales is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Debes iniciar sesión.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        usuario_id = decodificar_token_acceso(
+            credenciales.credentials
+        )
+    except (jwt.InvalidTokenError, RuntimeError):
+        raise HTTPException(
+            status_code=401,
+            detail="El token es inválido o ha vencido.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    usuario = db.get(models.Usuario, usuario_id)
+
+    if usuario is None:
+        raise HTTPException(
+            status_code=401,
+            detail="El usuario del token ya no existe.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return usuario
 
 # Definimos qué datos "esperamos" que nos envíe el usuario desde la web (Esquema Pydantic)
 class ProductoCrear(BaseModel):
@@ -38,12 +84,12 @@ class ProductoCrear(BaseModel):
         max_digits=10,
         decimal_places=2,
     )
-    usuario_id: int = Field(gt=0)
 
 @app.post("/productos", status_code=201)
 def crear_producto(
     producto: ProductoCrear,
     db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual),
 ):
     # Esta integración admite únicamente nuestra tienda de práctica.
     if (
@@ -58,13 +104,6 @@ def crear_producto(
             detail="Utiliza un enlace HTTPS de books.toscrape.com.",
         )
 
-    usuario = db.get(models.Usuario, producto.usuario_id)
-
-    if usuario is None:
-        raise HTTPException(
-            status_code=404,
-            detail="El usuario indicado no existe.",
-        )
 
     # Primero obtenemos los datos. Si falla, no creamos el producto.
     try:
@@ -95,7 +134,7 @@ def crear_producto(
         ) from error
 
     nuevo_producto = models.ProductoMonitoreado(
-        usuario_id=producto.usuario_id,
+        usuario_id=usuario_actual.id,
         url=datos["url"],
         precio_objetivo=producto.precio_objetivo,
         nombre=datos["nombre"],
@@ -144,9 +183,21 @@ def crear_producto(
     return respuesta
 
 @app.get("/productos")
-def listar_productos(db: Session = Depends(get_db)):
-    # Trae todos los productos guardados en la tabla
-    productos = db.query(models.ProductoMonitoreado).all()
+def listar_productos(
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(
+        obtener_usuario_actual
+    ),
+):
+    productos = (
+        db.query(models.ProductoMonitoreado)
+        .filter(
+            models.ProductoMonitoreado.usuario_id
+            == usuario_actual.id
+        )
+        .all()
+    )
+
     return productos
 
 # 1. Esquema para recibir los datos del nuevo usuario
@@ -196,18 +247,17 @@ def crear_usuario(
     }
 
 # 3. Ruta opcional para listar usuarios y ver sus IDs
-@app.get("/usuarios")
-def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios = db.query(models.Usuario).all()
-
-    return [
-        {
-            "id": usuario.id,
-            "email": usuario.email,
-            "fecha_creacion": usuario.fecha_creacion,
-        }
-        for usuario in usuarios
-    ]
+@app.get("/usuarios/me")
+def obtener_mi_usuario(
+    usuario_actual: models.Usuario = Depends(
+        obtener_usuario_actual
+    ),
+):
+    return {
+        "id": usuario_actual.id,
+        "email": usuario_actual.email,
+        "fecha_creacion": usuario_actual.fecha_creacion,
+    }
 
 class LoginEntrada(BaseModel):
     email: str
