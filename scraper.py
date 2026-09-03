@@ -1,4 +1,5 @@
 from decimal import Decimal
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
@@ -66,12 +67,18 @@ def extraer_precio(url, *, headless=True):
 
             if not precio_decimal.is_finite() or precio_decimal < 0:
                 raise ValueError("El precio no es válido.")
+            imagen = soup.select_one(".carousel-inner img")
 
+            if imagen is None or not imagen.get("src"):
+                raise ValueError("No se encontró la imagen del producto.")
+
+            imagen_url = urljoin(pagina.url, imagen["src"])
             return {
                 "nombre": nombre,
                 "precio": precio_decimal,
                 "moneda": "GBP",
-                "url": url,
+                "url": pagina.url,
+                "imagen_url": imagen_url
             }
 
         finally:
