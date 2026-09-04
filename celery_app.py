@@ -30,12 +30,10 @@ celery_app.conf.update(
 
 # Programación periódica del producto de prueba.
 celery_app.conf.beat_schedule = {
-    "revisar-libro-periodicamente": {
-        "task": "tasks.revisar_precio",
+    "programar-revisiones-periodicas": {
+        "task": "tasks.programar_revisiones",
+
+        # Temporal para comprobar el flujo.
         "schedule": 4 * 60 * 60,
-        "args": (
-            "https://books.toscrape.com/"
-            "catalogue/a-light-in-the-attic_1000/index.html",
-        ),
     },
 }
