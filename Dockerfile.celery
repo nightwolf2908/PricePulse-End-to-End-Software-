@@ -4,16 +4,15 @@ WORKDIR /app
 
 COPY requirements-celery.txt .
 
-# Instala las librerías de Python.
 RUN pip install --no-cache-dir -r requirements-celery.txt
 
-# Instala Chromium y las librerías de Linux que necesita.
 RUN python -m playwright install --with-deps chromium
 
-# Copia el código que utilizará el worker.
 COPY celery_app.py .
 COPY tasks.py .
 COPY scraper.py .
 COPY notificaciones.py .
+COPY database.py .
+COPY models.py .
 
 CMD ["celery", "-A", "celery_app", "worker", "--loglevel=info"]
