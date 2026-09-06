@@ -1,5 +1,6 @@
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from sqlalchemy.exc import OperationalError
+from notificaciones import enviar_alerta_si_corresponde
 
 import models
 from celery_app import celery_app
@@ -23,12 +24,7 @@ def sumar(numero_a, numero_b):
     retry_jitter=False,
 )
 def revisar_producto(producto_id):
-    """
-    Obtiene un producto desde PostgreSQL, ejecuta el scraper
-    y guarda una nueva observación de su precio.
-    """
-
-    # Primera sesión: obtener la información necesaria.
+    # Obtener la URL sin mantener la conexión durante el scraping.
     db = SessionLocal()
 
     try:
@@ -56,14 +52,11 @@ def revisar_producto(producto_id):
     finally:
         db.close()
 
-    # El scraping se realiza sin mantener abierta una sesión de BD.
     datos = extraer_precio(url, headless=True)
 
-    # Segunda sesión: guardar el resultado.
     db = SessionLocal()
 
     try:
-        # Volvemos a consultar porque pudo cambiar durante el scraping.
         producto = db.get(
             models.ProductoMonitoreado,
             producto_id,
@@ -81,13 +74,52 @@ def revisar_producto(producto_id):
             precio=datos["precio"],
         )
 
-        # También actualizamos datos que podrían cambiar en la tienda.
         producto.nombre = datos["nombre"]
         producto.imagen_url = datos["imagen_url"]
 
         db.add(observacion)
         db.commit()
         db.refresh(observacion)
+
+        # Comprobar si este producto ya generó una alerta.
+        alerta_existente = (
+            db.query(models.AlertaEnviada)
+            .filter(
+                models.AlertaEnviada.producto_id
+                == producto.id
+            )
+            .first()
+        )
+
+        if alerta_existente is not None:
+            estado_alerta = "enviada_anteriormente"
+
+        elif datos["precio"] > producto.precio_objetivo:
+            estado_alerta = "precio_superior_al_objetivo"
+
+        else:
+            resultado_notificacion = (
+                enviar_alerta_si_corresponde(
+                    producto={
+                        "nombre": datos["nombre"],
+                        "precio": datos["precio"],
+                        "moneda": datos["moneda"],
+                        "url": datos["url"],
+                    },
+                    precio_objetivo=producto.precio_objetivo,
+                    destinatario=producto.usuario.email,
+                )
+            )
+
+            alerta = models.AlertaEnviada(
+                producto_id=producto.id,
+                precio=datos["precio"],
+            )
+
+            db.add(alerta)
+            db.commit()
+
+            estado_alerta = resultado_notificacion["estado"]
 
         return {
             "estado": "actualizado",
@@ -96,7 +128,10 @@ def revisar_producto(producto_id):
             "nombre": producto.nombre,
             "precio": str(observacion.precio),
             "moneda": datos["moneda"],
-            "fecha_registro": observacion.fecha_registro.isoformat(),
+            "fecha_registro": (
+                observacion.fecha_registro.isoformat()
+            ),
+            "alerta": estado_alerta,
         }
 
     except Exception:

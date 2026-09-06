@@ -198,7 +198,47 @@ def listar_productos(
         .all()
     )
 
-    return productos
+    respuesta = []
+
+    for producto in productos:
+        ultimo_precio = (
+            db.query(models.HistorialPrecio)
+            .filter(
+                models.HistorialPrecio.producto_id
+                == producto.id
+            )
+            .order_by(
+                models.HistorialPrecio.fecha_registro.desc(),
+                models.HistorialPrecio.id.desc(),
+            )
+            .first()
+        )
+
+        respuesta.append(
+            {
+                "id": producto.id,
+                "nombre": producto.nombre,
+                "url": producto.url,
+                "imagen_url": producto.imagen_url,
+                "precio_objetivo": str(
+                    producto.precio_objetivo
+                ),
+                "precio_actual": (
+                    str(ultimo_precio.precio)
+                    if ultimo_precio
+                    else None
+                ),
+                "fecha_ultima_revision": (
+                    ultimo_precio.fecha_registro
+                    if ultimo_precio
+                    else None
+                ),
+                "moneda": "GBP",
+                "activo": producto.activo,
+            }
+        )
+
+    return respuesta
 
 # 1. Esquema para recibir los datos del nuevo usuario
 class UsuarioCrear(BaseModel):

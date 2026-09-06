@@ -29,14 +29,45 @@ class ProductoMonitoreado(Base):
     # Relaciones
     usuario = relationship("Usuario", back_populates="productos")
     historial_precios = relationship("HistorialPrecio", back_populates="producto")
+    alertas_enviadas = relationship("AlertaEnviada",back_populates="producto",)
 
 class HistorialPrecio(Base):
     __tablename__ = 'historial_precios'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     producto_id = Column(Integer, ForeignKey('productos_monitoreados.id'), nullable=False)
-    precio = Column(Decimal if False else Numeric(10, 2), nullable=False)  # <-- Corregido aquí
+    precio = Column(Numeric(10, 2), nullable=False)
     fecha_registro = Column(DateTime, default=datetime.utcnow)
     
     # Relación
     producto = relationship("ProductoMonitoreado", back_populates="historial_precios")
+
+
+class AlertaEnviada(Base):
+    __tablename__ = "alertas_enviadas"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+    producto_id = Column(
+        Integer,
+        ForeignKey("productos_monitoreados.id"),
+        nullable=False,
+        unique=True,
+    )
+    precio = Column(
+        Numeric(10, 2),
+        nullable=False,
+    )
+    fecha_envio = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    producto = relationship(
+        "ProductoMonitoreado",
+        back_populates="alertas_enviadas",
+    )
