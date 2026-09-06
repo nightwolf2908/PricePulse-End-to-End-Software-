@@ -39,6 +39,18 @@ const inactiveTabClasses = [
     "text-slate-500",
 ];
 
+const productsGrid = document.querySelector("#products-grid");
+const productCardTemplate = document.querySelector(
+    "#product-card-template"
+);
+
+const activeProductsCount = document.querySelector(
+    "#active-products-count"
+);
+const reachedTargetsCount = document.querySelector(
+    "#reached-targets-count"
+);
+
 
 async function apiRequest(path, options = {}) {
     const response = await fetch(`${API_URL}${path}`, options);
@@ -56,6 +68,12 @@ async function apiRequest(path, options = {}) {
 
         if (typeof data?.detail === "string") {
             message = data.detail;
+        }
+
+        if (Array.isArray(data?.detail)) {
+            message = data.detail
+                .map((error) => error.msg)
+                .join(" ");
         }
 
         throw new Error(message);
@@ -183,6 +201,7 @@ async function login(email, password) {
     });
 
     showDashboard(user.email);
+    await loadProducts();
 }
 
 
@@ -202,10 +221,193 @@ async function restoreSession() {
         });
 
         showDashboard(user.email);
+        await loadProducts();
 
     } catch {
         removeToken();
         showAuthentication();
+    }
+}
+
+function formatPrice(value, currency) {
+    if (value === null || value === undefined) {
+        return "Sin precio";
+    }
+
+    return new Intl.NumberFormat("es-MX", {
+        style: "currency",
+        currency,
+    }).format(Number(value));
+}
+
+
+function formatDate(value) {
+    if (!value) {
+        return "Sin revisiones";
+    }
+
+    return new Intl.DateTimeFormat("es-MX", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    }).format(new Date(value));
+}
+
+
+function renderProducts(products) {
+    productsGrid.replaceChildren();
+
+    const activeProducts = products.filter(
+        (product) => product.activo
+    );
+
+    const reachedTargets = products.filter((product) => {
+        if (product.precio_actual === null) {
+            return false;
+        }
+
+        return (
+            Number(product.precio_actual)
+            <= Number(product.precio_objetivo)
+        );
+    });
+
+    activeProductsCount.textContent = activeProducts.length;
+    reachedTargetsCount.textContent = reachedTargets.length;
+
+    if (products.length === 0) {
+        const emptyState = document.createElement("div");
+
+        emptyState.className =
+            "col-span-full rounded-2xl border border-dashed " +
+            "border-slate-300 bg-white px-6 py-14 text-center";
+
+        const title = document.createElement("h2");
+        title.className = "text-lg font-semibold";
+        title.textContent = "Todavía no monitoreas productos";
+
+        const description = document.createElement("p");
+        description.className =
+            "mx-auto mt-2 max-w-md text-sm text-slate-500";
+        description.textContent =
+            "Agrega un producto de Books to Scrape " +
+            "y PricePulse comenzará a registrar su precio.";
+
+        emptyState.append(title, description);
+        productsGrid.append(emptyState);
+
+        return;
+    }
+
+    products.forEach((product) => {
+        const card = productCardTemplate.content.cloneNode(true);
+
+        const image = card.querySelector('[data-field="image"]');
+        const name = card.querySelector('[data-field="name"]');
+        const status = card.querySelector('[data-field="status"]');
+
+        const currentPrice = card.querySelector(
+            '[data-field="current-price"]'
+        );
+
+        const targetPrice = card.querySelector(
+            '[data-field="target-price"]'
+        );
+
+        const lastCheck = card.querySelector(
+            '[data-field="last-check"]'
+        );
+
+        image.src = product.imagen_url;
+        image.alt = `Portada de ${product.nombre}`;
+
+        name.textContent = product.nombre;
+
+        currentPrice.textContent = formatPrice(
+            product.precio_actual,
+            product.moneda
+        );
+
+        targetPrice.textContent = formatPrice(
+            product.precio_objetivo,
+            product.moneda
+        );
+
+        lastCheck.textContent = formatDate(
+            product.fecha_ultima_revision
+        );
+
+        if (product.activo) {
+            status.textContent = "Activo";
+
+            status.classList.add(
+                "bg-emerald-100",
+                "text-emerald-700"
+            );
+        } else {
+            status.textContent = "Inactivo";
+
+            status.classList.add(
+                "bg-slate-100",
+                "text-slate-600"
+            );
+        }
+
+        productsGrid.append(card);
+    });
+}
+
+
+function renderProductsLoading() {
+    productsGrid.innerHTML = `
+        <div
+            class="col-span-full rounded-2xl border
+                   border-slate-200 bg-white px-6 py-14
+                   text-center text-sm text-slate-500"
+        >
+            Cargando productos...
+        </div>
+    `;
+}
+
+
+function renderProductsError(message) {
+    productsGrid.replaceChildren();
+
+    const errorBox = document.createElement("div");
+
+    errorBox.className =
+        "col-span-full rounded-2xl border border-red-200 " +
+        "bg-red-50 px-6 py-5 text-sm text-red-700";
+
+    errorBox.textContent = message;
+
+    productsGrid.append(errorBox);
+}
+
+
+async function loadProducts() {
+    renderProductsLoading();
+
+    try {
+        const products = await apiRequest("/productos", {
+            headers: {
+                Authorization: `Bearer ${getToken()}`,
+            },
+        });
+
+        renderProducts(products);
+
+    } catch (error) {
+        if (
+            error.message.includes("token")
+            || error.message.includes("sesión")
+        ) {
+            removeToken();
+            showAuthentication();
+            return;
+        }
+
+        renderProductsError(error.message);
     }
 }
 
@@ -322,14 +524,48 @@ document.addEventListener("keydown", (event) => {
 });
 
 
-productForm.addEventListener("submit", (event) => {
+productForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    productFormMessage.textContent =
-        "La creación del producto se conectará después.";
+    const submitButton = productForm.querySelector(
+        'button[type="submit"]'
+    );
 
-    productFormMessage.className =
-        "mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700";
+    const formData = new FormData(productForm);
+
+    const productData = {
+        url: formData.get("url"),
+        precio_objetivo: formData.get("precio_objetivo"),
+    };
+
+    productFormMessage.classList.add("hidden");
+    submitButton.disabled = true;
+    submitButton.textContent = "Consultando producto...";
+
+    try {
+        await apiRequest("/productos", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${getToken()}`,
+            },
+            body: JSON.stringify(productData),
+        });
+
+        closeProductModal();
+        await loadProducts();
+
+    } catch (error) {
+        productFormMessage.textContent = error.message;
+
+        productFormMessage.className =
+            "mt-5 rounded-xl bg-red-50 px-4 py-3 " +
+            "text-sm text-red-700";
+
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Monitorear";
+    }
 });
 
 
