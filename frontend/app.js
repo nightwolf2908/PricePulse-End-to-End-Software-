@@ -15,6 +15,27 @@ const inactiveTabClasses = [
     "text-slate-500",
 ];
 
+const authView = document.querySelector("#auth-view");
+const dashboardView = document.querySelector("#dashboard-view");
+
+const logoutButton = document.querySelector("#logout-button");
+const userEmail = document.querySelector("#user-email");
+
+const productModal = document.querySelector("#product-modal");
+const openProductFormButton = document.querySelector(
+    "#open-product-form"
+);
+const closeProductFormButton = document.querySelector(
+    "#close-product-form"
+);
+const cancelProductFormButton = document.querySelector(
+    "#cancel-product-form"
+);
+const productForm = document.querySelector("#product-form");
+const productFormMessage = document.querySelector(
+    "#product-form-message"
+);
+
 function hideMessage() {
     formMessage.classList.add("hidden");
     formMessage.textContent = "";
@@ -52,6 +73,36 @@ function showRegister() {
     hideMessage();
 }
 
+function showDashboard(email) {
+    authView.classList.add("hidden");
+    dashboardView.classList.remove("hidden");
+
+    if (email) {
+        userEmail.textContent = email;
+    }
+}
+
+function showAuthentication() {
+    dashboardView.classList.add("hidden");
+    authView.classList.remove("hidden");
+    showLogin();
+}
+
+function openProductModal() {
+    productModal.classList.remove("hidden");
+    productModal.classList.add("flex");
+
+    document.querySelector("#product-url").focus();
+}
+
+function closeProductModal() {
+    productModal.classList.add("hidden");
+    productModal.classList.remove("flex");
+
+    productForm.reset();
+    productFormMessage.classList.add("hidden");
+}
+
 loginTab.addEventListener("click", showLogin);
 registerTab.addEventListener("click", showRegister);
 
@@ -62,19 +113,59 @@ registerTab.addEventListener("click", showRegister);
 loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    formMessage.textContent =
-        "La conexión con FastAPI se añadirá en el siguiente incremento.";
+    const formData = new FormData(loginForm);
+    const email = formData.get("email");
 
-    formMessage.className =
-        "mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700";
+    showDashboard(email);
 });
 
 registerForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    formMessage.textContent =
-        "La conexión con FastAPI se añadirá en el siguiente incremento.";
+    const formData = new FormData(registerForm);
+    const email = formData.get("email");
 
-    formMessage.className =
+    showDashboard(email);
+});
+
+logoutButton.addEventListener("click", showAuthentication);
+
+openProductFormButton.addEventListener(
+    "click",
+    openProductModal
+);
+
+closeProductFormButton.addEventListener(
+    "click",
+    closeProductModal
+);
+
+cancelProductFormButton.addEventListener(
+    "click",
+    closeProductModal
+);
+
+productModal.addEventListener("click", (event) => {
+    if (event.target === productModal) {
+        closeProductModal();
+    }
+});
+
+document.addEventListener("keydown", (event) => {
+    if (
+        event.key === "Escape"
+        && !productModal.classList.contains("hidden")
+    ) {
+        closeProductModal();
+    }
+});
+
+productForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    productFormMessage.textContent =
+        "En el siguiente incremento enviaremos este producto a FastAPI.";
+
+    productFormMessage.className =
         "mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700";
 });
