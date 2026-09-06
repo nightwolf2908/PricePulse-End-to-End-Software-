@@ -9,7 +9,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.exc import IntegrityError
-
+from fastapi.middleware.cors import CORSMiddleware
 
 # Importamos la conexión y nuestros modelos
 from database import get_db
@@ -37,6 +37,17 @@ from seguridad import (
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PricePulse API", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 seguridad_bearer = HTTPBearer(auto_error=False)
 

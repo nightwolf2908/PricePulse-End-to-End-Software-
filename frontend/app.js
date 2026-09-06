@@ -1,19 +1,12 @@
+const API_URL = window.PRICEPULSE_CONFIG.API_URL;
+const TOKEN_KEY = "pricepulse_token";
+
 const loginTab = document.querySelector("#tab-login");
 const registerTab = document.querySelector("#tab-register");
 
 const loginForm = document.querySelector("#login-form");
 const registerForm = document.querySelector("#register-form");
 const formMessage = document.querySelector("#form-message");
-
-const activeTabClasses = [
-    "bg-white",
-    "text-slate-900",
-    "shadow-sm",
-];
-
-const inactiveTabClasses = [
-    "text-slate-500",
-];
 
 const authView = document.querySelector("#auth-view");
 const dashboardView = document.querySelector("#dashboard-view");
@@ -36,10 +29,73 @@ const productFormMessage = document.querySelector(
     "#product-form-message"
 );
 
+const activeTabClasses = [
+    "bg-white",
+    "text-slate-900",
+    "shadow-sm",
+];
+
+const inactiveTabClasses = [
+    "text-slate-500",
+];
+
+
+async function apiRequest(path, options = {}) {
+    const response = await fetch(`${API_URL}${path}`, options);
+
+    let data = null;
+
+    try {
+        data = await response.json();
+    } catch {
+        data = null;
+    }
+
+    if (!response.ok) {
+        let message = "Ocurrió un error inesperado.";
+
+        if (typeof data?.detail === "string") {
+            message = data.detail;
+        }
+
+        throw new Error(message);
+    }
+
+    return data;
+}
+
+
+function getToken() {
+    return localStorage.getItem(TOKEN_KEY);
+}
+
+
+function saveToken(token) {
+    localStorage.setItem(TOKEN_KEY, token);
+}
+
+
+function removeToken() {
+    localStorage.removeItem(TOKEN_KEY);
+}
+
+
 function hideMessage() {
     formMessage.classList.add("hidden");
     formMessage.textContent = "";
 }
+
+
+function showFormMessage(message, type) {
+    const colors = type === "error"
+        ? "bg-red-50 text-red-700"
+        : "bg-emerald-50 text-emerald-700";
+
+    formMessage.textContent = message;
+    formMessage.className =
+        `mt-5 rounded-xl px-4 py-3 text-sm ${colors}`;
+}
+
 
 function showLogin() {
     loginForm.classList.remove("hidden");
@@ -57,6 +113,7 @@ function showLogin() {
     hideMessage();
 }
 
+
 function showRegister() {
     registerForm.classList.remove("hidden");
     loginForm.classList.add("hidden");
@@ -73,14 +130,13 @@ function showRegister() {
     hideMessage();
 }
 
+
 function showDashboard(email) {
     authView.classList.add("hidden");
     dashboardView.classList.remove("hidden");
-
-    if (email) {
-        userEmail.textContent = email;
-    }
+    userEmail.textContent = email;
 }
+
 
 function showAuthentication() {
     dashboardView.classList.add("hidden");
@@ -88,12 +144,14 @@ function showAuthentication() {
     showLogin();
 }
 
+
 function openProductModal() {
     productModal.classList.remove("hidden");
     productModal.classList.add("flex");
 
     document.querySelector("#product-url").focus();
 }
+
 
 function closeProductModal() {
     productModal.classList.add("hidden");
@@ -103,32 +161,133 @@ function closeProductModal() {
     productFormMessage.classList.add("hidden");
 }
 
+
+async function login(email, password) {
+    const result = await apiRequest("/login", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            email,
+            password,
+        }),
+    });
+
+    saveToken(result.access_token);
+
+    const user = await apiRequest("/usuarios/me", {
+        headers: {
+            Authorization: `Bearer ${result.access_token}`,
+        },
+    });
+
+    showDashboard(user.email);
+}
+
+
+async function restoreSession() {
+    const token = getToken();
+
+    if (!token) {
+        showAuthentication();
+        return;
+    }
+
+    try {
+        const user = await apiRequest("/usuarios/me", {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        showDashboard(user.email);
+
+    } catch {
+        removeToken();
+        showAuthentication();
+    }
+}
+
+
 loginTab.addEventListener("click", showLogin);
 registerTab.addEventListener("click", showRegister);
 
-/*
- * Por ahora evitamos que los formularios recarguen la página.
- * En el siguiente incremento estas funciones llamarán a FastAPI.
- */
-loginForm.addEventListener("submit", (event) => {
+
+loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    hideMessage();
+
+    const submitButton = loginForm.querySelector(
+        'button[type="submit"]'
+    );
 
     const formData = new FormData(loginForm);
     const email = formData.get("email");
+    const password = formData.get("password");
 
-    showDashboard(email);
+    submitButton.disabled = true;
+    submitButton.textContent = "Ingresando...";
+
+    try {
+        await login(email, password);
+        loginForm.reset();
+
+    } catch (error) {
+        showFormMessage(error.message, "error");
+
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Iniciar sesión";
+    }
 });
 
-registerForm.addEventListener("submit", (event) => {
+
+registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    hideMessage();
+
+    const submitButton = registerForm.querySelector(
+        'button[type="submit"]'
+    );
 
     const formData = new FormData(registerForm);
     const email = formData.get("email");
+    const password = formData.get("password");
 
-    showDashboard(email);
+    submitButton.disabled = true;
+    submitButton.textContent = "Creando cuenta...";
+
+    try {
+        await apiRequest("/usuarios", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                email,
+                password,
+            }),
+        });
+
+        await login(email, password);
+        registerForm.reset();
+
+    } catch (error) {
+        showFormMessage(error.message, "error");
+
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Crear cuenta";
+    }
 });
 
-logoutButton.addEventListener("click", showAuthentication);
+
+logoutButton.addEventListener("click", () => {
+    removeToken();
+    showAuthentication();
+});
+
 
 openProductFormButton.addEventListener(
     "click",
@@ -145,11 +304,13 @@ cancelProductFormButton.addEventListener(
     closeProductModal
 );
 
+
 productModal.addEventListener("click", (event) => {
     if (event.target === productModal) {
         closeProductModal();
     }
 });
+
 
 document.addEventListener("keydown", (event) => {
     if (
@@ -160,12 +321,16 @@ document.addEventListener("keydown", (event) => {
     }
 });
 
+
 productForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
     productFormMessage.textContent =
-        "En el siguiente incremento enviaremos este producto a FastAPI.";
+        "La creación del producto se conectará después.";
 
     productFormMessage.className =
         "mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700";
 });
+
+
+restoreSession();
