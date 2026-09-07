@@ -1,17 +1,16 @@
 import os
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    (
-        "postgresql://pulse_admin:"
-        "mi_contrasena_segura2908"
-        "@localhost:5432/pricepulse_mvp"
-    ),
-)
+load_dotenv()
+
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not SQLALCHEMY_DATABASE_URL:
+    raise RuntimeError("Falta la variable de entorno DATABASE_URL")
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,

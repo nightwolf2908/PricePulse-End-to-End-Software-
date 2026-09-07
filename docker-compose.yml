@@ -4,9 +4,9 @@ services:
     container_name: pricepulse_postgres
     restart: always
     environment:
-      POSTGRES_USER: pulse_admin
-      POSTGRES_PASSWORD: mi_contrasena_segura2908
-      POSTGRES_DB: pricepulse_mvp
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -14,7 +14,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - pg_isready -U pulse_admin -d pricepulse_mvp
+        - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
       interval: 5s
       timeout: 3s
       retries: 5
@@ -38,9 +38,9 @@ services:
     container_name: pricepulse_celery_worker
     restart: always
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
-      DATABASE_URL: postgresql://pulse_admin:mi_contrasena_segura2908@postgres_db:5432/pricepulse_mvp
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
     depends_on:
       redis:
         condition: service_healthy
@@ -65,9 +65,9 @@ services:
       - --loglevel=info
       - --schedule=/data/celerybeat-schedule
     environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
-      DATABASE_URL: postgresql://pulse_admin:mi_contrasena_segura2908@postgres_db:5432/pricepulse_mvp
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
     depends_on:
       redis:
         condition: service_healthy
@@ -85,7 +85,7 @@ services:
     container_name: pricepulse_api
     restart: always
     environment:
-      DATABASE_URL: postgresql://pulse_admin:mi_contrasena_segura2908@postgres_db:5432/pricepulse_mvp
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
     env_file:
       - .env
     depends_on:
@@ -128,7 +128,7 @@ services:
       - upgrade
       - head
     environment:
-      DATABASE_URL: postgresql://pulse_admin:mi_contrasena_segura2908@postgres_db:5432/pricepulse_mvp
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
     depends_on:
       postgres_db:
         condition: service_healthy

@@ -2,6 +2,7 @@ import os
 import sys
 from logging.config import fileConfig
 from os import path
+from dotenv import load_dotenv
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -16,15 +17,17 @@ from models import Base
 
 config = context.config
 
-# Dentro de Docker sustituye la dirección de alembic.ini.
+load_dotenv()
+
 database_url = os.getenv("DATABASE_URL")
 
-if database_url:
-    # Alembic utiliza % para interpolar valores de configuración.
-    config.set_main_option(
-        "sqlalchemy.url",
-        database_url.replace("%", "%%"),
-    )
+if not database_url:
+    raise RuntimeError("Falta la variable de entorno DATABASE_URL")
+
+config.set_main_option(
+    "sqlalchemy.url",
+    database_url.replace("%", "%%"),
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
