@@ -46,6 +46,8 @@ services:
         condition: service_healthy
       postgres_db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     env_file:
       - .env
 
@@ -71,6 +73,8 @@ services:
         condition: service_healthy
       postgres_db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - celery_beat_data:/data
 
@@ -87,6 +91,8 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
     healthcheck:
@@ -111,6 +117,22 @@ services:
         condition: service_healthy
     ports:
       - "8080:80"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: pricepulse_migrate
+    command:
+      - alembic
+      - upgrade
+      - head
+    environment:
+      DATABASE_URL: postgresql://pulse_admin:mi_contrasena_segura2908@postgres_db:5432/pricepulse_mvp
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   postgres_data:

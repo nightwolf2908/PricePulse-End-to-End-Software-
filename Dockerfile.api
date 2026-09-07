@@ -10,6 +10,8 @@ RUN pip install --no-cache-dir -r requirements-api.txt
 # por eso la API también necesita Chromium.
 RUN python -m playwright install --with-deps chromium
 
+COPY alembic.ini .
+COPY alembic ./alembic
 COPY main.py .
 COPY database.py .
 COPY models.py .
