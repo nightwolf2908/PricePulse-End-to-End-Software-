@@ -74,6 +74,22 @@ services:
     volumes:
       - celery_beat_data:/data
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: pricepulse_api
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://pulse_admin:mi_contrasena_segura2908@postgres_db:5432/pricepulse_mvp
+    env_file:
+      - .env
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
 volumes:
   postgres_data:
   celery_beat_data:

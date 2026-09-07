@@ -49,6 +49,13 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+@app.get("/health")
+def comprobar_salud():
+    return {
+        "estado": "ok",
+        "servicio": "pricepulse-api",
+    }
+
 seguridad_bearer = HTTPBearer(auto_error=False)
 
 

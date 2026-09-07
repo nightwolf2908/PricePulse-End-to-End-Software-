@@ -1,0 +1,21 @@
+FROM python:3.12-slim-bookworm
+
+WORKDIR /app
+
+COPY requirements-api.txt .
+
+RUN pip install --no-cache-dir -r requirements-api.txt
+
+# El endpoint POST /productos ejecuta Playwright,
+# por eso la API también necesita Chromium.
+RUN python -m playwright install --with-deps chromium
+
+COPY main.py .
+COPY database.py .
+COPY models.py .
+COPY scraper.py .
+COPY seguridad.py .
+
+EXPOSE 8000
+
+CMD ["uvicorn","main:app","--host","0.0.0.0","--port","8000"]
