@@ -89,6 +89,28 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pricepulse_frontend
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
 
 volumes:
   postgres_data:
