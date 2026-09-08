@@ -112,7 +112,27 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "${FRONTEND_BIND:-0.0.0.0}:${FRONTEND_PORT:-8080}:80"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: pricepulse_caddy
+    restart: always
+    profiles:
+      - production
+    environment:
+      DOMAIN: ${DOMAIN}
+    depends_on:
+      frontend:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
   migrate:
     build:
@@ -133,3 +153,5 @@ services:
 volumes:
   postgres_data:
   celery_beat_data:
+  caddy_data:
+  caddy_config:
