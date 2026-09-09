@@ -89,6 +89,7 @@ jobs:
               "cd /home/ubuntu/PricePulse-End-to-End-Software-",
               "sudo -u ubuntu git pull --ff-only origin main",
               "docker compose --profile production up -d --build --remove-orphans",
+              "docker compose restart frontend caddy",
               "docker compose --profile production ps",
               "curl --fail --silent --show-error https://abdiel2908.com/api/health"
             ]
