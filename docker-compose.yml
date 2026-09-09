@@ -36,7 +36,7 @@ services:
     environment:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      DATABASE_URL: ${APP_DATABASE_URL}
     depends_on:
       redis:
         condition: service_healthy
@@ -63,7 +63,7 @@ services:
     environment:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      DATABASE_URL: ${APP_DATABASE_URL}
     depends_on:
       redis:
         condition: service_healthy
@@ -81,7 +81,7 @@ services:
     container_name: pricepulse_api
     restart: always
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      DATABASE_URL: ${APP_DATABASE_URL}
     env_file:
       - .env
     depends_on:
@@ -144,7 +144,7 @@ services:
       - upgrade
       - head
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      DATABASE_URL: ${APP_DATABASE_URL}
     depends_on:
       postgres_db:
         condition: service_healthy
